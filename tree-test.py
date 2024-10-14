@@ -106,28 +106,31 @@ def parse_regex(expr):
             nodes.insert(0, concat_node)
         
         return nodes[0], i
-   
+
+
 
     root, _ = parse_expression(0)
+    return root
 
+def calculate_followpos(root):
     # Calculate followpos
     followpos = root.calculate_followpos()
-    
+        
     # Add # to followpos of the last positions
     node_id = root.get_max_node_id() + 1
     for pos in root.lastpos:
         if pos not in followpos:
             followpos[pos] = set()
         followpos[pos].add(node_id)
-
     print("Followpos:", followpos)
-    return root
+    return followpos
 
 # Test the code with a regular expression
 regex = "aa*((b|b*)aa*b)*"
 regex = "aa*"
 regex = "&|a|bb*"
+regex = "&|b|a|bb*a"
 tree = parse_regex(regex)
 print(tree)
-
+followpos = calculate_followpos(tree)
 # Test the automaton generation
