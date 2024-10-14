@@ -286,7 +286,40 @@ def uniao_automatos(afd1, afd2):
 def print_automato_uniao(automato_uniao):
     pass
 
+def gerar_automato_from_followpos(tree, followpos):
+    automato = Automato()
+    alfabeto = set()
+    def traverse(node):
+        if node:
+            if node.value not in {'|', '.', '*', '&'}:
+                alfabeto.add(node.value)
+            traverse(node.left)
+            traverse(node.right)
+    traverse(tree)
+    automato.set_alfabeto(alfabeto)
 
+    # Adicionar o estado final especial '#'
+    estado_final = tree.get_max_node_id() + 1
+    
+    # O estado inicial 
+    if tree.nullable:
+        estado_inicial = frozenset(tree.firstpos).union({estado_final})
+    else:
+        estado_inicial = frozenset(tree.firstpos)
+    print(estado_inicial)
+    estados = [estado_inicial]
+    estados_nao_marcados = [estado_inicial]
+    
+    # Mapeamento de conjuntos de estados para IDs únicos
+    estado_para_id = {estado_inicial: 1}
+    proximo_id = 2
+
+    ## Ate aqui esta certo
+    ## Falta somente adicionar as informacoes no automato com a formatacao correta
+
+
+
+    return automato
 
 def main():
     
@@ -302,13 +335,15 @@ def main():
     # Test the code with a regular expression
     regex = "aa*((b|b*)aa*b)*"
     regex = "aa*"
-    regex = "&|a|bb*"
     regex = "&|b|a|bb*a"
+    regex = "&|a|bb*"
     tree = parse_regex(regex)
     print(tree)
     followpos = calculate_followpos(tree)
 
     # Gerar automato a partir do followpos
+    automato = gerar_automato_from_followpos(tree, followpos)
+    print(automato)
 
 
 
