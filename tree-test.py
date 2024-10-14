@@ -127,6 +127,7 @@ def parse_regex(expr):
 regex = "aa*((b|b*)aa*b)*"
 regex = "aa*"
 regex = "&|a|bb*"
+regex = "&|b|a|bb*a"
 tree = parse_regex(regex)
 print(tree)
 
