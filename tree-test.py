@@ -7,19 +7,46 @@ class Node:
         self.nullable = False  # Indicates if the node can derive the empty string
         self.firstpos = set()  # Set of first positions
         self.lastpos = set()   # Set of last positions
-        self.followpos = set() # Set of follow positions
 
     def __repr__(self, level=0, prefix="Root: "):
         result = "\t" * level + prefix + repr(self.value) + f" (ID: {self.id})\n"
-        result += f"Nullable: {self.nullable}\n"
-        result += f"Firstpos: {self.firstpos}\n"
-        result += f"Lastpos: {self.lastpos}\n"
-        result += f"Followpos: {self.followpos}\n"
         if self.left:
             result += self.left.__repr__(level + 1, "L--- ")
         if self.right:
             result += self.right.__repr__(level + 1, "R--- ")
         return result
+
+    def calculate_followpos(self):
+        followpos = {}
+        self._calculate_followpos_recursive(followpos)
+        return followpos
+
+    def _calculate_followpos_recursive(self, followpos):
+        if self.left:
+            self.left._calculate_followpos_recursive(followpos)
+        if self.right:
+            self.right._calculate_followpos_recursive(followpos)
+
+        if self.value == '.':
+            # Concatenation: add lastpos of left to firstpos of right
+            for pos in self.left.lastpos:
+                if pos not in followpos:
+                    followpos[pos] = set()
+                followpos[pos].update(self.right.firstpos)
+        elif self.value == '*':
+            # Star operation: add lastpos to firstpos
+            for pos in self.lastpos:
+                if pos not in followpos:
+                    followpos[pos] = set()
+                followpos[pos].update(self.firstpos)
+
+    def get_max_node_id(self):
+        max_id = self.id if self.id is not None else 0  # Start with current node's id
+        if self.left:
+            max_id = max(max_id, self.left.get_max_node_id())  # Check left child
+        if self.right:
+            max_id = max(max_id, self.right.get_max_node_id())  # Check right child
+        return max_id  # Return the maximum id found
 
 
 def parse_regex(expr):
@@ -79,8 +106,21 @@ def parse_regex(expr):
             nodes.insert(0, concat_node)
         
         return nodes[0], i
+   
 
     root, _ = parse_expression(0)
+
+    # Calculate followpos
+    followpos = root.calculate_followpos()
+    
+    # Add # to followpos of the last positions
+    node_id = root.get_max_node_id() + 1
+    for pos in root.lastpos:
+        if pos not in followpos:
+            followpos[pos] = set()
+        followpos[pos].add(node_id)
+
+    print("Followpos:", followpos)
     return root
 
 # Test the code with a regular expression
@@ -91,4 +131,3 @@ tree = parse_regex(regex)
 print(tree)
 
 # Test the automaton generation
-
