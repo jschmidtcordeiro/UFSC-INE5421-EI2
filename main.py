@@ -289,17 +289,14 @@ def print_automato_uniao(automato_uniao):
 def gerar_automato_from_followpos(tree, followpos):
     automato = Automato()
     alfabeto = set()
-    node_id_alfabeto = dict()
     def traverse(node):
         if node:
             if node.value not in {'|', '.', '*', '&'}:
                 alfabeto.add(node.value)
-                node_id_alfabeto[node.id] = node.value
             traverse(node.left)
             traverse(node.right)
     traverse(tree)
     automato.set_alfabeto(alfabeto)
-    print(node_id_alfabeto)
 
     # Adicionar o estado final especial '#'
     estado_final = tree.get_max_node_id() + 1
@@ -320,35 +317,7 @@ def gerar_automato_from_followpos(tree, followpos):
     ## Ate aqui esta certo
     ## Falta somente adicionar as informacoes no automato com a formatacao correta
 
-    while estados_nao_marcados:
-        estado_atual = estados_nao_marcados.pop(0)
-        for simbolo in alfabeto:
-            proximo_estado = frozenset()
-            for pos in estado_atual:
-                if pos != estado_final and tree.value == simbolo:
-                    proximo_estado |= followpos.get(pos, set())
-            
-            if proximo_estado:
-                if proximo_estado not in estados:
-                    estados.append(proximo_estado)
-                    estados_nao_marcados.append(proximo_estado)
-                    estado_para_id[proximo_estado] = proximo_id
-                    proximo_id += 1
-                
-                automato.adicionar_transicao(
-                    f"{{{estado_para_id[estado_atual]}}}",
-                    simbolo,
-                    f"{{{estado_para_id[proximo_estado]}}}"
-                )
 
-    # Definir estado inicial e estados finais
-    automato.set_estado_inicial(estado_inicial)
-    automato.set_estados_finais({f"{{{estado_para_id[estado]}}}" for estado in estados if estado_final in estado})
-
-    print(automato.get_estado_inicial())
-    print(automato.get_estados_finais())
-    print(automato.get_alfabeto())
-    print(automato.get_transicoes())
 
     return automato
 
