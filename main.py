@@ -55,7 +55,28 @@ class Automato:
         }
         for qi, a, qj in self.transicoes:
             self.tabela_transicoes[qi][a].add(qj)
-    
+
+    def get_er_to_afd_formatted(self):
+        estado_inicial = frozenset_to_set_string(self.estado_inicial)
+        
+        estados_finais = str()
+        for estado in self.estados_finais:
+            estados_finais += frozenset_to_set_string(estado)
+            estados_finais += ","
+        estados_finais = estados_finais[:-1] # Remove a ultima virgula
+
+        alfabeto = str()
+        for simbolo in self.alfabeto:
+            alfabeto += simbolo + ","
+        alfabeto = alfabeto[:-1] # Remove a ultima virgula
+
+        transicoes = str()
+        for transicao in self.transicoes:
+            transicoes += frozenset_to_set_string(transicao[0]) + "," + transicao[1] + "," + frozenset_to_set_string(transicao[2]) + ";"
+        transicoes = transicoes[:-1] # Remove a ultima virgula
+
+        return f"<{self.num_estados};{estado_inicial};{{{estados_finais}}};{{{alfabeto}}};{transicoes}>"
+
     def adicionar_estado(self, estado):
         self.estados.add(estado)
         self.num_estados += 1
@@ -80,6 +101,10 @@ class Automato:
     
     def set_alfabeto(self, alfabeto):
         self.alfabeto = alfabeto
+
+    def set_estados(self, estados):
+        self.estados = estados
+        self.num_estados = len(estados)
 
     def set_estado_inicial(self, estado):
         self.estado_inicial = estado
@@ -146,12 +171,16 @@ class Node:
 
 
 def parse_regex(expr):
-    def parse_expression(i, node_id=0):
+    class NodeIdCounter:
+        def __init__(self):
+            self.value = 0
+
+    def parse_expression(i, id_counter):
         nodes = []
         while i < len(expr):
             if expr[i] == '(':
                 # Parse a subexpression
-                subexpr, i = parse_expression(i + 1, node_id)
+                subexpr, i = parse_expression(i + 1, id_counter)
                 nodes.append(subexpr)
             elif expr[i] == ')':
                 # End of a subexpression
@@ -167,7 +196,7 @@ def parse_regex(expr):
             elif expr[i] == '|':
                 # Union operation (needs two children)
                 left = Node('|', left=nodes.pop())
-                subexpr, i = parse_expression(i + 1, node_id)
+                subexpr, i = parse_expression(i + 1, id_counter)
                 left.right = subexpr
                 left.nullable = left.left.nullable or left.right.nullable
                 left.firstpos = left.left.firstpos.union(left.right.firstpos)
@@ -182,11 +211,11 @@ def parse_regex(expr):
                 nodes.append(node)
             else:
                 # Append symbol (concatenation handled later)
-                node_id += 1
-                node = Node(expr[i], node_id=node_id)
+                id_counter.value += 1
+                node = Node(expr[i], node_id=id_counter.value)
                 node.nullable = False
-                node.firstpos = {node_id}
-                node.lastpos = {node_id}
+                node.firstpos = {id_counter.value}
+                node.lastpos = {id_counter.value}
                 nodes.append(node)
             i += 1
         
@@ -203,9 +232,8 @@ def parse_regex(expr):
         
         return nodes[0], i
 
-
-
-    root, _ = parse_expression(0)
+    id_counter = NodeIdCounter()
+    root, _ = parse_expression(0, id_counter)
     return root
 
 def calculate_followpos(root):
@@ -218,7 +246,6 @@ def calculate_followpos(root):
         if pos not in followpos:
             followpos[pos] = set()
         followpos[pos].add(node_id)
-    print("Followpos:", followpos)
     return followpos
 
 ####################
@@ -286,6 +313,9 @@ def uniao_automatos(afd1, afd2):
 def print_automato_uniao(automato_uniao):
     pass
 
+def frozenset_to_set_string(frozen_set):
+    return '{' + ','.join(map(str, frozen_set)) + '}'
+
 def gerar_automato_from_followpos(tree, followpos):
     automato = Automato()
     alfabeto = set()
@@ -308,7 +338,6 @@ def gerar_automato_from_followpos(tree, followpos):
         estado_inicial = frozenset(tree.firstpos).union({estado_final})
     else:
         estado_inicial = frozenset(tree.firstpos)
-    print(estado_inicial)
     estados = [estado_inicial]
     estados_nao_marcados = [estado_inicial]
     
@@ -335,17 +364,25 @@ def gerar_automato_from_followpos(tree, followpos):
                     proximo_id += 1
                 
                 automato.adicionar_transicao(
-                    f"{estado_atual}",
+                    estado_atual,
                     simbolo,
-                    f"{proximo_estado}"
+                    proximo_estado
                 )
 
     # Definir estado inicial e estados finais
     automato.set_estado_inicial(estado_inicial)
-    estados_finais = {f"{estado}" for estado in estados if estado_final in estado}
+    estados_finais = {estado for estado in estados if estado_final in estado}
     automato.set_estados_finais(estados_finais)
+    automato.set_estados(estados)
 
     return automato
+
+def parse_input(input):
+    # Input: <ER1><ER2>
+    # Output: (ER1, ER2)
+    input = input.strip('<>')
+    input = input.split('><')
+    return input[0], input[1]
 
 def main():
     
@@ -357,22 +394,6 @@ def main():
         Essa é apenas uma sugestão de estruturação.
         [...]
     """
-
-    # Test the code with a regular expression
-    regex = "aa*((b|b*)aa*b)*"
-    regex = "aa*"
-    regex = "&|b|a|bb*a"
-    regex = "&|a|bb*"
-    tree = parse_regex(regex)
-    print(tree)
-    followpos = calculate_followpos(tree)
-
-    # Gerar automato a partir do followpos
-    automato = gerar_automato_from_followpos(tree, followpos)
-
-
-
-
 
     input1 = "<(&|b)(ab)*(&|a)><&|b|a|bb*a>"
     input1_afd1 = "<3;{1,2,4,5};{{1,2,4,5},{3,5},{2,4,5}};{a,b};{1,2,4,5},a,{3,5};{1,2,4,5},b,{2,4,5};{3,5},b,{2,4,5};{2,4,5},a,{3,5}>" 
@@ -389,6 +410,20 @@ def main():
 
     input5 = "<&|b|a|bb*a><a(a|b)*a>"
     input5_afds = "<4;{1,2,3,6};{{1,2,3,6},{6},{4,5,6}};{a,b};{1,2,3,6},a,{6};{1,2,3,6},b,{4,5,6};{4,5,6},a,{6};{4,5,6},b,{4,5};{4,5},a,{6};{4,5},b,{4,5}><3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}>"
+
+    er1, er2 = parse_input(input1)
+
+    # Solve er1
+    tree = parse_regex(er1)
+    followpos = calculate_followpos(tree)
+    automato = gerar_automato_from_followpos(tree, followpos)
+    print(automato.get_er_to_afd_formatted())
+
+    # Solve er2
+    tree = parse_regex(er2)
+    followpos = calculate_followpos(tree)
+    automato = gerar_automato_from_followpos(tree, followpos)
+    print(automato.get_er_to_afd_formatted())
 
     afd1 = Automato(input1_afd1)
     afd2 = Automato(input1_afd2)
