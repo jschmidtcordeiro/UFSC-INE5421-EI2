@@ -289,10 +289,12 @@ def print_automato_uniao(automato_uniao):
 def gerar_automato_from_followpos(tree, followpos):
     automato = Automato()
     alfabeto = set()
+    node_id_alfabeto = dict()
     def traverse(node):
         if node:
             if node.value not in {'|', '.', '*', '&'}:
                 alfabeto.add(node.value)
+                node_id_alfabeto[node.id] = node.value
             traverse(node.left)
             traverse(node.right)
     traverse(tree)
@@ -317,7 +319,31 @@ def gerar_automato_from_followpos(tree, followpos):
     ## Ate aqui esta certo
     ## Falta somente adicionar as informacoes no automato com a formatacao correta
 
+    while estados_nao_marcados:
+        estado_atual = estados_nao_marcados.pop(0)
+        for simbolo in alfabeto:
+            proximo_estado = frozenset()
+            for pos in estado_atual:
+                if pos != estado_final and node_id_alfabeto[pos] == simbolo:
+                    proximo_estado |= followpos.get(pos, set())
+            
+            if proximo_estado:
+                if proximo_estado not in estados:
+                    estados.append(proximo_estado)
+                    estados_nao_marcados.append(proximo_estado)
+                    estado_para_id[proximo_estado] = proximo_id
+                    proximo_id += 1
+                
+                automato.adicionar_transicao(
+                    f"{estado_atual}",
+                    simbolo,
+                    f"{proximo_estado}"
+                )
 
+    # Definir estado inicial e estados finais
+    automato.set_estado_inicial(estado_inicial)
+    estados_finais = {f"{estado}" for estado in estados if estado_final in estado}
+    automato.set_estados_finais(estados_finais)
 
     return automato
 
@@ -343,7 +369,6 @@ def main():
 
     # Gerar automato a partir do followpos
     automato = gerar_automato_from_followpos(tree, followpos)
-    print(automato)
 
 
 
