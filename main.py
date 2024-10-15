@@ -34,7 +34,7 @@ class Automato:
     
     def gerar_automato(self, entrada):
         informacoes = entrada.strip('<>').split(';')
-        self.num_estados = informacoes[0]
+        self.num_estados = int(informacoes[0])
         self.estado_inicial = informacoes[1]
         self.estados_finais = set("{"+s+"}" for s in informacoes[2].strip("{}").split("},{"))
         self.alfabeto = set(informacoes[3].strip('{}').split(','))
@@ -79,11 +79,14 @@ class Automato:
 
     def adicionar_estado(self, estado):
         self.estados.add(estado)
-        self.num_estados += 1
+        #self.num_estados += 1
     
     def adicionar_transicao(self, qi, simbolo, qj):
         self.transicoes.add(tuple([qi,simbolo,qj]))
     
+    def get_num_estados(self):
+        return self.num_estados
+
     def get_estado_inicial(self):
         return self.estado_inicial
 
@@ -99,6 +102,9 @@ class Automato:
     def get_transicoes(self):
         return self.transicoes
     
+    def set_num_estados(self, num):
+        self.num_estados = num
+
     def set_alfabeto(self, alfabeto):
         self.alfabeto = alfabeto
 
@@ -254,10 +260,14 @@ def calculate_followpos(root):
 
 def uniao_automatos(afd1, afd2):
     automato_uniao = Automato()
+
+    # Definir numero de estados
+    automato_uniao.set_num_estados(afd1.get_num_estados() + afd2.get_num_estados())
     
     # Definir estado inicial do novo automato
-    automato_uniao.set_estado_inicial("{q0}")
-    automato_uniao.adicionar_estado("{q0}")
+    estado_inicial = frozenset(["q0"])
+    automato_uniao.set_estado_inicial(estado_inicial)
+    automato_uniao.adicionar_estado(estado_inicial)
 
     # Unir os alfabetos dos automatos para ser o alfabeto do novo automato
     alfabeto = set()
@@ -294,12 +304,12 @@ def uniao_automatos(afd1, afd2):
         automato_uniao.adicionar_transicao(qi, simbolo, qj)
     
     # Adicionar epsilon-transicoes do q0 para os estados iniciais originais
-    tabela_transicoes['{q0}']['&'] = set()
-    tabela_transicoes['{q0}']['&'].add(afd1.get_estado_inicial())
-    tabela_transicoes['{q0}']['&'].add(afd2.get_estado_inicial())
+    tabela_transicoes[estado_inicial]['&'] = set()
+    tabela_transicoes[estado_inicial]['&'].add(afd1.get_estado_inicial())
+    tabela_transicoes[estado_inicial]['&'].add(afd2.get_estado_inicial())
 
-    automato_uniao.adicionar_transicao('{q0}', '&', afd1.get_estado_inicial())
-    automato_uniao.adicionar_transicao('{q0}', '&', afd2.get_estado_inicial())
+    automato_uniao.adicionar_transicao(estado_inicial, '&', afd1.get_estado_inicial())
+    automato_uniao.adicionar_transicao(estado_inicial, '&', afd2.get_estado_inicial())
 
     automato_uniao.set_tabela_transicoes(tabela_transicoes)
 
@@ -311,7 +321,29 @@ def uniao_automatos(afd1, afd2):
 #########################
 
 def print_automato_uniao(automato_uniao):
-    pass
+    str_estados_finais = list()
+    for estado in automato_uniao.get_estados_finais():
+        str_estados_finais.append('{' + f"{frozenset_to_set_string(estado)}" + '}')
+    
+    str_transicoes = list()
+    for (qi,simbolo,qj) in automato_uniao.get_transicoes():
+        str_qi = frozenset_to_set_string(qi)
+        if str_qi == "{q0}":
+            str_qj = '{' + frozenset_to_set_string(qj) + '}'
+        else:
+            str_qj = frozenset_to_set_string(qj)
+        
+        str_transicoes.append(f"{str_qi},{simbolo},{str_qj}")
+    
+    saida = (
+        f"<{automato_uniao.get_num_estados()};"
+        f"{frozenset_to_set_string(automato_uniao.get_estado_inicial())};"
+        '{' + f"{','.join(str_estados_finais)}" + '};'
+        f"{{{','.join(automato_uniao.get_alfabeto())}}};"
+        f"{';'.join(str_transicoes)}>"
+    )
+
+    return saida
 
 def frozenset_to_set_string(frozen_set):
     return '{' + ','.join(map(str, frozen_set)) + '}'
@@ -386,52 +418,26 @@ def parse_input(input):
 
 def main():
     
-    #vpl_input = argv[1] # **Não remover essa linha**, ela é responsável por receber a string de entrada do VPL
+    vpl_input = argv[1] # **Não remover essa linha**, ela é responsável por receber a string de entrada do VPL
     
-    """ 
-        Seu código para resolver o exercício e printar a saída. 
-        Você pode fazer funções foras da main se preferir. 
-        Essa é apenas uma sugestão de estruturação.
-        [...]
-    """
-
-    input1 = "<(&|b)(ab)*(&|a)><&|b|a|bb*a>"
-    input1_afd1 = "<3;{1,2,4,5};{{1,2,4,5},{3,5},{2,4,5}};{a,b};{1,2,4,5},a,{3,5};{1,2,4,5},b,{2,4,5};{3,5},b,{2,4,5};{2,4,5},a,{3,5}>" 
-    input1_afd2 = "<4;{1,2,3,6};{{1,2,3,6},{6},{4,5,6}};{a,b};{1,2,3,6},a,{6};{1,2,3,6},b,{4,5,6};{4,5,6},a,{6};{4,5,6},b,{4,5};{4,5},a,{6};{4,5},b,{4,5}>"
-
-    input2 = "<aa*(bb*aa*b)*><a(a|b)*a>"
-    input2_afds = "<5;{1};{{2,3,8},{3,8}};{a,b};{1},a,{2,3,8};{2,3,8},a,{2,3,8};{2,3,8},b,{4,5};{4,5},a,{6,7};{4,5},b,{4,5};{6,7},a,{6,7};{6,7},b,{3,8};{3,8},b,{4,5}><3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}>"
-
-    input3 = "<a(a|b)*a><a(a|b)*a>"
-    input3_afds = "<3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}><3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}>"
-
-    input4 = "<a(a*(bb*a)*)*|b(b*(aa*b)*)*><a(a|b)*a>"
-    input4_afds = "<5;{1,6};{{2,3,11},{7,8,11}};{a,b};{1,6},a,{2,3,11};{1,6},b,{7,8,11};{2,3,11},a,{2,3,11};{2,3,11},b,{4,5};{7,8,11},a,{9,10};{7,8,11},b,{7,8,11};{4,5},a,{2,3,11};{4,5},b,{4,5};{9,10},a,{9,10};{9,10},b,{7,8,11}><3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}>"
-
-    input5 = "<&|b|a|bb*a><a(a|b)*a>"
-    input5_afds = "<4;{1,2,3,6};{{1,2,3,6},{6},{4,5,6}};{a,b};{1,2,3,6},a,{6};{1,2,3,6},b,{4,5,6};{4,5,6},a,{6};{4,5,6},b,{4,5};{4,5},a,{6};{4,5},b,{4,5}><3;{1};{{2,3,4,5}};{a,b};{1},a,{2,3,4};{2,3,4},a,{2,3,4,5};{2,3,4},b,{2,3,4};{2,3,4,5},a,{2,3,4,5};{2,3,4,5},b,{2,3,4}>"
-
-    er1, er2 = parse_input(input1)
+    er1, er2 = parse_input(vpl_input)
 
     # Solve er1
     tree = parse_regex(er1)
     followpos = calculate_followpos(tree)
-    automato = gerar_automato_from_followpos(tree, followpos)
-    print(automato.get_er_to_afd_formatted())
+    automato_1 = gerar_automato_from_followpos(tree, followpos)
+    automato_1_format = automato_1.get_er_to_afd_formatted()
 
     # Solve er2
     tree = parse_regex(er2)
     followpos = calculate_followpos(tree)
-    automato = gerar_automato_from_followpos(tree, followpos)
-    print(automato.get_er_to_afd_formatted())
+    automato_2 = gerar_automato_from_followpos(tree, followpos)
+    automato_2_format = automato_2.get_er_to_afd_formatted()
 
-    afd1 = Automato(input1_afd1)
-    afd2 = Automato(input1_afd2)
+    # Uniao dos automatos
+    automato_uniao = uniao_automatos(automato_1, automato_2)
 
-    automato_uniao = uniao_automatos(afd1, afd2)
-    print()
-
-    # output = <7;{q0};{{{1,2,4,5}},{{3,5}},{{2,4,5}},{{1,2,3,6}},{{6}},{{4,5,6}}};{a,b};{q0},&,{{1,2,4,5}};{q0},&,{{1,2,3,6}};{1,2,4,5},a,{3,5};{1,2,4,5},b,{2,4,5};{3,5},b,{2,4,5};{2,4,5},a,{3,5};{1,2,3,6},a,{6};{1,2,3,6},b,{4,5,6};{4,5,6},a,{6};{4,5,6},b,{4,5};{4,5},a,{6};{4,5},b,{4,5}>
-
+    print(f'{automato_1_format}{automato_2_format}{print_automato_uniao(automato_uniao)}')
+   
 if __name__ == "__main__":
     main()
